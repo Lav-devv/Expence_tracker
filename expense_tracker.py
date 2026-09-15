@@ -1,105 +1,223 @@
-import calendar 
+import calendar
 from datetime import datetime
+import os
+
+import streamlit as st
 from expense import Expense
 
-def main():
-   print(f"🏃‍♂️ Running Expense tracker!!")
-   expense_file_path = "expenses.csv"
-   budget = 2000
-# Get user input for expense. 
-   expense = get_user_expense()
 
-# write their expesnse to a file.
-  
-   save_expense_to_file(expense, expense_file_path)
+# -----------------------------
+# Page configuration
+# -----------------------------
+st.set_page_config(
+    page_title="Kharcha Paani",
+    page_icon="💰",
+    layout="centered"
+)
 
-# read file and summrize expensesclo.
-   summarize_expense(expense_file_path, budget)
-
-def get_user_expense():
-  print(f"getting user Expense!!")
-  expense_name = input("Enter expense name: ")
-  expense_amount = float(input("Enter expense amount: "))
-  expense_categories = [
-    "🍔Food", 
-    "🏡Home", 
-    "💻Work",
-    "🎮Fun", 
-    "🌀Misc",
-    ]
-
-  while True:
-    print("Select a category: ")
-    for i, category_name in enumerate(expense_categories):
-      print(f"  {i + 1}. {category_name}")
-
-    value_range = f"[1 - {len(expense_categories)}]"
-    selected_index = int(input(f"Enter a category number {value_range}: ")) -1
+st.title("💰 Kharcha Paani")
+st.subheader("Personal Expense Tracker")
 
 
-    if selected_index in range(len(expense_categories)):
-     selected_category = expense_categories[selected_index]
-     new_expense = Expense(name = expense_name, category=selected_category, amount= expense_amount
-     )
-     return new_expense
-    else:
-     print("Invalid category. please try againnn..!!!")
+EXPENSE_FILE_PATH = "expenses.csv"
+BUDGET = 2000
 
+EXPENSE_CATEGORIES = [
+    "🍔 Food",
+    "🏡 Home",
+    "💻 Work",
+    "🎮 Fun",
+    "🌀 Misc",
+]
+
+
+# -----------------------------
+# Save expense
+# -----------------------------
 def save_expense_to_file(expense, expense_file_path):
-      print(f"💾 saving user Expense: {expense} to {expense_file_path}")
-      with open(expense_file_path, "a", encoding="utf=8") as f:
-        f.write(f"{expense.name},{expense.amount},{expense.category}\n") 
+    with open(expense_file_path, "a", encoding="utf-8") as f:
+        f.write(
+            f"{expense.name},{expense.amount},{expense.category}\n"
+        )
 
-        
-      def green(text):
-          return f"\033[92m{text}\033[0m"
-        
+
+# -----------------------------
+# Read expenses
+# -----------------------------
+def get_all_expenses(expense_file_path):
+    expenses = []
+
+    if not os.path.exists(expense_file_path):
+        return expenses
+
+    with open(expense_file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+
+            try:
+                expense_name, expense_amount, expense_category = (
+                    line.strip().split(",")
+                )
+
+                expense = Expense(
+                    name=expense_name,
+                    amount=float(expense_amount),
+                    category=expense_category
+                )
+
+                expenses.append(expense)
+
+            except ValueError:
+                continue
+
+    return expenses
+
+
+# -----------------------------
+# Summary
+# -----------------------------
 def summarize_expense(expense_file_path, budget):
-  print(f"📑 summarizing user Expense...!!")
-  expenses: list[Expense] = []
+    expenses = get_all_expenses(expense_file_path)
 
-  with open(expense_file_path, "r", encoding= "utf-8") as f:
-    lines = f.readlines()
-    for line in lines:
-      if not line.strip():
-        continue
-      expense_name, expense_amount, expense_category = line.strip().split(",")
-      line_expense = Expense(
-        name=expense_name, amount=float(expense_amount), category=expense_category 
-      )
-      expenses.append(line_expense)
+    if not expenses:
+        st.info("No expenses added yet.")
+        return
 
-  amount_by_category = {}
-  for expense in expenses:
-    key = expense.category
-    if key in amount_by_category:
-      amount_by_category[key] += expense.amount
+    # Total spent
+    total_spent = sum(expense.amount for expense in expenses)
+
+    # Category totals
+    amount_by_category = {}
+
+    for expense in expenses:
+        category = expense.category
+
+        if category in amount_by_category:
+            amount_by_category[category] += expense.amount
+        else:
+            amount_by_category[category] = expense.amount
+
+    # Budget calculation
+    remaining_budget = budget - total_spent
+
+    now = datetime.now()
+    days_in_month = calendar.monthrange(now.year, now.month)[1]
+    remaining_days = days_in_month - now.day
+
+    if remaining_days > 0:
+        daily_budget = remaining_budget / remaining_days
     else:
-      amount_by_category[key] = expense.amount 
-      print("Expenses By category📈:")
+        daily_budget = remaining_budget
 
-    for key, amount in amount_by_category.items():
-      print(f"     {key}: ${amount:.2f}")
+    # -------------------------
+    # Display summary
+    # -------------------------
+    st.subheader("📊 Expense Summary")
 
-      total_spent = sum([ex.amount for ex in expenses])
-      print(f"📤You've spent ${total_spent:.2f} this month!!")
+    col1, col2 = st.columns(2)
 
-      remaining_budget = budget - total_spent
-      print(f"💸Budget Remaining: ${remaining_budget:.2f} this month!!")
+    with col1:
+        st.metric(
+            "💸 Total Spent",
+            f"₹{total_spent:,.2f}"
+        )
 
-      now = datetime.now()
-      days_in_month = calendar.monthrange(now.year, now.month)[1]
-      remaining_days = days_in_month - now.day
-      print("Remaining days in current month:", remaining_days)
-      def green(text):
-          return f"\033[92m{text}\033[0m"
+    with col2:
+        st.metric(
+            "💰 Budget Remaining",
+            f"₹{remaining_budget:,.2f}"
+        )
 
-      daily_budget = remaining_budget / remaining_days
-      print(green(f"👉 Budget per Day: ${daily_budget:.2f}"))
+    st.write("### 📈 Expenses by Category")
+
+    for category, amount in amount_by_category.items():
+        st.write(f"**{category}:** ₹{amount:,.2f}")
+
+    st.write(f"📅 **Remaining days this month:** {remaining_days}")
+
+    if remaining_budget >= 0:
+        st.success(
+            f"👉 You can spend approximately "
+            f"**₹{daily_budget:,.2f} per day**."
+        )
+    else:
+        st.error(
+            f"⚠️ You are **₹{abs(remaining_budget):,.2f} over budget**!"
+        )
 
 
-if __name__ == "__main__": #__name__ is a special types of variable and it is equal to __main__ when we run as a file and it is only be true when we run it instead of importing it. 
- main()
+# -----------------------------
+# Add expense UI
+# -----------------------------
+st.subheader("➕ Add New Expense")
+
+expense_name = st.text_input(
+    "Expense name",
+    placeholder="e.g. Lunch, Rent, Netflix..."
+)
+
+expense_amount = st.number_input(
+    "Expense amount (₹)",
+    min_value=0.0,
+    step=10.0,
+    format="%.2f"
+)
+
+expense_category = st.selectbox(
+    "Select category",
+    EXPENSE_CATEGORIES
+)
 
 
- 
+if st.button("💾 Add Expense", use_container_width=True):
+
+    if not expense_name.strip():
+        st.warning("Please enter an expense name.")
+
+    elif expense_amount <= 0:
+        st.warning("Please enter an amount greater than ₹0.")
+
+    else:
+        new_expense = Expense(
+            name=expense_name.strip(),
+            amount=expense_amount,
+            category=expense_category
+        )
+
+        save_expense_to_file(
+            new_expense,
+            EXPENSE_FILE_PATH
+        )
+
+        st.success(
+            f"✅ Added **{expense_name}** — ₹{expense_amount:,.2f}"
+        )
+
+        st.rerun()
+
+
+# -----------------------------
+# Show summary
+# -----------------------------
+summarize_expense(
+    EXPENSE_FILE_PATH,
+    BUDGET
+)
+
+
+# -----------------------------
+# Show all expenses
+# -----------------------------
+expenses = get_all_expenses(EXPENSE_FILE_PATH)
+
+if expenses:
+
+    st.subheader("📋 All Expenses")
+
+    for expense in reversed(expenses):
+        st.write(
+            f"**{expense.name}** — "
+            f"₹{expense.amount:,.2f} — "
+            f"{expense.category}"
+        )
