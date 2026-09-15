@@ -1,4 +1,8 @@
-with open(expense_file_path, "a", encoding="utf-8") as f:
-    f.write(
-        f"{expense.name},{expense.amount},{expense.category}\n"
-    )
+class Expense:
+    def __init__(self, name, category, amount) -> None:
+        self.name = name 
+        self.category = category
+        self.amount = amount 
+
+    def __repr__(self):
+        return f"<Expense: {self.name}, {self.category}, Rs{self.amount:.2f} >"
