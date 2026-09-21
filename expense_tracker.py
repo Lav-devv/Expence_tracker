@@ -18,6 +18,71 @@ st.set_page_config(
 
 st.title("💰 Kharcha Paani")
 st.subheader("Personal Expense Tracker")
+# ==========================================
+# USER IDENTIFICATION & AUTHENTICATION
+# ==========================================
+USER_FILE = "users.txt"
+
+# 1. Helper function to read saved users
+def load_users():
+    users = {}
+    if os.path.exists(USER_FILE):
+        with open(USER_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    user, pwd = line.strip().split(",")
+                    users[user] = pwd
+    return users
+
+# 2. Helper function to save a new user
+def save_user(username, password):
+    with open(USER_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{username},{password}\n")
+
+st.sidebar.header("🔐 Authentication")
+
+# 3. Add a radio button to switch between Login and Sign Up
+auth_mode = st.sidebar.radio("Select Mode", ["Login", "Sign Up"])
+
+# Load existing users from the file
+users_db = load_users()
+
+if auth_mode == "Sign Up":
+    st.sidebar.subheader("Create a New Account")
+    new_user = st.sidebar.text_input("Choose a Username").strip().lower()
+    new_pwd = st.sidebar.text_input("Choose a Password", type="password")
+    
+    if st.sidebar.button("Register"):
+        if not new_user or not new_pwd:
+            st.sidebar.warning("⚠️ Please fill in both fields.")
+        elif new_user in users_db:
+            st.sidebar.error("❌ Username already exists. Try another.")
+        else:
+            save_user(new_user, new_pwd)
+            st.sidebar.success("✅ Account created! Please switch to 'Login' above.")
+    
+    # Stop the app here so the expense tracker doesn't load during sign up
+    st.stop() 
+
+elif auth_mode == "Login":
+    username = st.sidebar.text_input("Username").strip().lower()
+    password = st.sidebar.text_input("Password", type="password")
+    
+    # Stop the app if fields are empty
+    if not username or not password:
+        st.info("👈 Please login or sign up in the sidebar to continue.")
+        st.stop()
+        
+    # Verify the credentials against the saved users
+    if username not in users_db or users_db[username] != password:
+        st.sidebar.error("❌ Incorrect username or password.")
+        st.stop()
+        
+    st.sidebar.success(f"✅ Logged in as {username.capitalize()}")
+    
+    # Dynamically set the file path based on the authenticated username
+    EXPENSE_FILE_PATH = f"{username}_expenses.csv"
+
 
 
 # ==========================================
