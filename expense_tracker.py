@@ -89,7 +89,6 @@ elif auth_mode == "Login":
 # SETTINGS
 # ==========================================
 
-EXPENSE_FILE_PATH = "expenses.csv"
 
 EXPENSE_CATEGORIES = [
     "🍔 Food",
